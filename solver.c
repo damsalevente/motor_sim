@@ -1,13 +1,13 @@
 #include "math.h"
 #include "stdio.h"
 #include "stdlib.h"
-#define R 4.3
-#define Ld 27e-3
-#define Lq 67e-3
-#define J 1e-4
+#define R 0.2
+#define Ld 0.4e-3
+#define Lq 0.4e-3
+#define J 5e-5
 #define P 4
-#define B 1e-5
-#define lambda 0.272
+#define B 1
+#define lambda 0.17
 #define N 6
 
 float yt_a[N]; /* yt for adaptive rk4 */
@@ -34,7 +34,7 @@ static inline void Pendulum(float t, float u[], float f[])
 {
     f[0] = -R/Ld * u[0] + Ld/Lq * P * u[2]*u[1] + 1/Ld * u[3];
     f[1] = -R/Lq * u[1] - Ld/Lq * P * u[2] * u[0] - (lambda*P*u[2])/Lq  + 1/Lq * u[4];
-    f[2] = -P/J * (lambda*u[1] + (Ld-Lq)*u[1]*u[0]) - B/J*u[2] - u[5]/J;
+    f[2] = P/J * (lambda*u[1] + (Ld-Lq)*u[1]*u[0]) - B/J*u[2] - u[5]/J;
     f[3] = 0;//u[3];
     f[4] = 0;//u[4];
     f[5] = 0;//u[5];
