@@ -1,0 +1,1 @@
+gcc solver.c motor.c pid.c -o solver -lm 

@@ -1,17 +1,9 @@
 #include "math.h"
 #include "motor.h"
+#include "pid.h"
 #include "stdio.h"
 #include "stdlib.h"
-#define R 0.2
-#define Ld 0.4e-3
-#define Lq 0.4e-3
-#define J 5e-5
-#define P 4
-#define B 1
-#define lambda 0.17
 #define N 6
-#define K 0.5
-#define PID_I 0.05
 
 float yt_a[N]; /* yt for adaptive rk4 */
 float yt2[N];
@@ -24,17 +16,6 @@ typedef struct _rk_param {
   float f4[N];
 } rk_param;
 
-float pid(float *target, float *currval) {
-  static float buffer = 0;
-  float err;
-  float answer;
-  err = *target - *currval;
-  buffer += err;
-  answer = K * err + PID_I * buffer;
-  answer = answer > 230 ? 230 : answer;
-  answer = answer < 0 ? 0 : answer;
-  return answer;
-}
 
 static void rk4(float t, float ht, float y[], int n,
                 void Func(float, float[], float[])) {
@@ -61,6 +42,7 @@ static void rk4(float t, float ht, float y[], int n,
     y[i] += ht6 * (rk.f1[i] + 2 * (rk.f2[i] + rk.f3[i]) + rk.f4[i]);
   }
 }
+
 void adaptrk4(float t, float *ht, float *ht1, float eps, float y[], int n,
               void Func(float, float[], float[])) {
 
@@ -122,7 +104,7 @@ int main() {
   u[2] = 0;
   u[3] = 0;
   u[4] = 0;
-  u[TI] = 5;
+  u[TI] = 0;
   fprintf(out, "%f,%f,%f,%f,%f,%f,%f,%f\n", t, u[0], u[1], u[2], u[3], u[4],
           u[5]);
   while (t + ht < tmax) {
