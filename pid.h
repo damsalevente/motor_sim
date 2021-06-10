@@ -1,6 +1,10 @@
+typedef struct pi_struct{
+   float K;
+    float I; 
+    float lim_max;
+    float lim_min;
+}pi_struct;
 
-#define K 0.5
-#define PID_I 0.05
 
 /* no D rn */
-float pid(float *target, float *currval);
+float pi(pi_struct *dev, float *target, float *currval);

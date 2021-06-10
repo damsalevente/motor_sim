@@ -1,6 +1,6 @@
-#define N 6 /* number of variables */
+#define N 7 /* number of variables */
 
-typedef enum params{ID=0,IQ,WR,VD,VQ,TI,ODE_COUNT}params;
+typedef enum params{ID=0,IQ,WR,VD,VQ,TI,THETA,ODE_COUNT}params;
 typedef struct motor_params{
     float R; /* resistance */
     float Ld; /* inductance for d reference frame */

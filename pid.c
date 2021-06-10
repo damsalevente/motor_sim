@@ -1,13 +1,13 @@
 #include "pid.h"
-
-float pid(float *target, float *currval) {
+float pi(pi_struct *dev, float *target, float *currval)
+{
   static float buffer = 0;
   float err;
   float answer;
   err = *target - *currval;
   buffer += err;
-  answer = K * err + PID_I * buffer;
-  answer = answer > 230 ? 230 : answer;
-  answer = answer < 0 ? 0 : answer;
+  answer = dev->K * err + dev->I * buffer;
+  answer = answer > dev->lim_max ? dev->lim_max : answer;
+  answer = answer < dev->lim_min ? dev->lim_min : answer;
   return answer;
 }
