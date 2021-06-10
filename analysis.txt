@@ -2,16 +2,12 @@ Flat profile:
 
 Each sample counts as 0.01 seconds.
   %   cumulative   self              self     total           
- time   seconds   seconds    calls  us/call  us/call  name    
- 66.84      0.02     0.02   567468     0.04     0.04  motor_eq
- 33.42      0.03     0.01   141867     0.07     0.21  rk4
-  0.00      0.03     0.00    47108     0.00     0.64  adaptrk4
-  0.00      0.03     0.00    47108     0.00     0.00  get_torque
-  0.00      0.03     0.00    15000     0.00     0.00  pi
-  0.00      0.03     0.00     5000     0.00     0.00  control
-  0.00      0.03     0.00     5000     0.00     6.02  step
-  0.00      0.03     0.00        1     0.00     0.00  motor_turn_on
-  0.00      0.03     0.00        1     0.00     0.00  write_header
+ time   seconds   seconds    calls  ns/call  ns/call  name    
+ 45.78      0.16     0.16 12968832    12.36    12.36  motor_eq
+ 40.06      0.30     0.14  3242208    43.25    92.67  rk4.constprop.0
+ 14.31      0.35     0.05                             step
+  0.00      0.35     0.00   714570     0.00     0.00  get_torque
+  0.00      0.35     0.00    15000     0.00     0.00  pi
 
  %         the percentage of the total running time of the
 time       program used by this function.
@@ -49,47 +45,26 @@ notice and this notice are preserved.
 		     Call graph (explanation follows)
 
 
-granularity: each sample hit covers 2 byte(s) for 33.25% of 0.03 seconds
+granularity: each sample hit covers 2 byte(s) for 2.85% of 0.35 seconds
 
 index % time    self  children    called     name
-                0.01    0.02  141867/141867      adaptrk4 [2]
-[1]    100.0    0.01    0.02  141867         rk4 [1]
-                0.02    0.00  567468/567468      motor_eq [5]
------------------------------------------------
-                0.00    0.03   47108/47108       step [3]
-[2]    100.0    0.00    0.03   47108         adaptrk4 [2]
-                0.01    0.02  141867/141867      rk4 [1]
------------------------------------------------
-                0.00    0.03    5000/5000        main [4]
-[3]    100.0    0.00    0.03    5000         step [3]
-                0.00    0.03   47108/47108       adaptrk4 [2]
-                0.00    0.00   47108/47108       get_torque [6]
------------------------------------------------
                                                  <spontaneous>
-[4]    100.0    0.00    0.03                 main [4]
-                0.00    0.03    5000/5000        step [3]
-                0.00    0.00    5000/5000        control [8]
-                0.00    0.00       1/1           write_header [10]
-                0.00    0.00       1/1           motor_turn_on [9]
+[1]    100.0    0.05    0.30                 step [1]
+                0.14    0.16 3242208/3242208     rk4.constprop.0 [2]
+                0.00    0.00  714570/714570      get_torque [4]
 -----------------------------------------------
-                0.02    0.00  567468/567468      rk4 [1]
-[5]     66.7    0.02    0.00  567468         motor_eq [5]
+                0.14    0.16 3242208/3242208     step [1]
+[2]     85.7    0.14    0.16 3242208         rk4.constprop.0 [2]
+                0.16    0.00 12968832/12968832     motor_eq [3]
 -----------------------------------------------
-                0.00    0.00   47108/47108       step [3]
-[6]      0.0    0.00    0.00   47108         get_torque [6]
+                0.16    0.00 12968832/12968832     rk4.constprop.0 [2]
+[3]     45.7    0.16    0.00 12968832         motor_eq [3]
+-----------------------------------------------
+                0.00    0.00  714570/714570      step [1]
+[4]      0.0    0.00    0.00  714570         get_torque [4]
 -----------------------------------------------
                 0.00    0.00   15000/15000       control [8]
-[7]      0.0    0.00    0.00   15000         pi [7]
------------------------------------------------
-                0.00    0.00    5000/5000        main [4]
-[8]      0.0    0.00    0.00    5000         control [8]
-                0.00    0.00   15000/15000       pi [7]
------------------------------------------------
-                0.00    0.00       1/1           main [4]
-[9]      0.0    0.00    0.00       1         motor_turn_on [9]
------------------------------------------------
-                0.00    0.00       1/1           main [4]
-[10]     0.0    0.00    0.00       1         write_header [10]
+[5]      0.0    0.00    0.00   15000         pi [5]
 -----------------------------------------------
 
  This table describes the call tree of the program, and was sorted by
@@ -182,6 +157,5 @@ notice and this notice are preserved.
 
 Index by function name
 
-   [2] adaptrk4                [5] motor_eq                [1] rk4
-   [8] control                 [9] motor_turn_on           [3] step
-   [6] get_torque              [7] pi                     [10] write_header
+   [4] get_torque              [5] pi                      [1] step
+   [3] motor_eq                [2] rk4.constprop.0

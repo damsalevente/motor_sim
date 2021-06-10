@@ -1,6 +1,7 @@
 .vscode/*
 # Prerequisites
 *.d
+motor_sim
 
 # Object files
 *.o
