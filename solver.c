@@ -3,21 +3,10 @@
 #include "controllers.h"
 #include "pid.h"
 #include "stdio.h"
-#include "stdlib.h"
-#define STEP_SIZE 1e-2
-#define EPS 1e-3
+#include "solver.h"
 
-float yt_a[N]; /* yt for adaptive rk4 */
-float yt2[N];
-
-typedef struct _rk_param {
-    float yt[N]; /* yt for rk4 */
-    float f1[N];
-    float f2[N];
-    float f3[N];
-    float f4[N];
-} rk_param;
-
+static float yt_a[N]; /* yt for adaptive rk4 */
+static float yt2[N];
 
 static void rk4(float t, float ht, float y[], int n,
         void Func(float, float[], float[])) {
@@ -89,7 +78,7 @@ void adaptrk4(float t, float *ht, float *ht1, float eps, float y[], int n,
 void step(float t, float next_t,float u[])
 {
     FILE *out = fopen("plot.csv", "a");
-    float ht;
+    float ht = STEP_SIZE;
     float ht1 = STEP_SIZE;
     float torque;
     while(t + ht < next_t)
@@ -99,16 +88,8 @@ void step(float t, float next_t,float u[])
         torque = get_torque(&u[ID], &u[IQ]);
         t += ht;
     }
-    fprintf(out, "%f,%f,%f,%f,%f,%f,%f,%f\n", t, u[0], u[1], u[2], u[3], u[4],
-            u[5],u[THETA], torque);
+    fprintf(out, "%f,%f,%f,%f,%f,%f,%f,%f\n", t, u[0], u[1], u[2], u[3], u[4],u[5],u[THETA]);
     printf("Step:%lf\n\tI_d => %lf\t U_d => %lf\n\tI_q => %lf\tUq => %lf\n\tSpeed => %lf\n\tposition: %lf\n", t, u[0],u[VD], u[1],u[VQ], u[WR], u[THETA]);
-    fclose(out);
-}
-
-void write_header()
-{
-    FILE *out = fopen("plot.csv", "w");
-    fprintf(out, "t,id,iq,wr,ud,uq,tl,te,theta\n");
     fclose(out);
 }
 
@@ -120,23 +101,9 @@ void motor_turn_on(float u[])
     }
 }
 
-int main() {
-    float t,*u;
-    float ud,uq;
-    u = (float *)malloc(N * sizeof(float)); // solution components
-
-    write_header();
-    motor_turn_on(u);
-    t = 0.0;
-    for(int i = 0; i < 5000; i++)
-    {
-        control(30,u[WR],u[ID],u[IQ],&ud, &uq);
-        u[VD] = ud;
-        u[VQ] = uq;
-        step(t, t + 0.1, u);
-        t += 0.1;
-    }
-
-    free(u);
-    return 0;
+void write_header()
+{
+    FILE *out = fopen("plot.csv", "w");
+    fprintf(out, "t,id,iq,wr,ud,uq,tl,te,theta\n");
+    fclose(out);
 }
