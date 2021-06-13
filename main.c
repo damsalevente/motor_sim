@@ -28,6 +28,21 @@ void report_err(const char *on_what)
   exit(1);
 }
 
+int getctrl(char *buffer, float *ud, float *uq)
+{
+  char *control = strtok(buffer, ",");
+  if(control == NULL)
+  {
+    return -1;
+  }
+  *ud = atof(control);
+  control = strtok(NULL, ",");
+  if(control == NULL)
+  {
+    return -1;
+  }
+  *uq = atof(control); 
+}
 
 int main() {
   /* motor parameters */
@@ -75,16 +90,16 @@ int main() {
   write_header();
   motor_turn_on(u);
 
-  t = 0;
   /* 
-  when a client connects, read out the control signals (ud,uq), and step 0.1
-  send the id,iq currents, the input to verify, speed and rotor position 
-  TODO: another option is to get only one connection, and continously play this loop: 
-  client : send control
-  server : get control, update motor, send observation 
-  */
+     when a client connects, read out the control signals (ud,uq), and step 0.1
+     send the id,iq currents, the input to verify, speed and rotor position 
+summary: 
+- client : send control
+- server : get control, update motor, send observation 
+*/
   while(1)
   {
+    t = 0; /* reset motor sim to zero */
     /* wait for connection */
     len_inet = sizeof adr_clnt;
     c = accept(s, (struct sockaddr *)&adr_clnt, &len_inet);
@@ -92,22 +107,39 @@ int main() {
     {
       report_err("accept()");
     }
-    n = recv(c, dtbuf, sizeof(dtbuf) -1, 0);
-    dtbuf[n] = '\0';
-    /* tokenize with , to get the two float values */
-    char *control = strtok(dtbuf, ",");
-    ud = atof(control);
-    control = strtok(NULL, ",");
-    uq = atof(control); 
-    u[VD] = ud;
-    u[VQ] = uq;
-    step(t, t + TS, u);
-    t += TS;
-    n = (int)snprintf(dtbuf,sizeof(dtbuf), "%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",t, u[ID],u[IQ],u[VD],u[VQ],u[WR],u[THETA]);
-    z = write(c,dtbuf,n);
-    if ( z == -1)
+    while(1)
     {
-      report_err("Write()");
+      n = recv(c, dtbuf, sizeof(dtbuf) -1, 0);
+      dtbuf[n] = '\0';
+      printf("Input: %s\n",dtbuf);
+      if(n == 0)
+      {
+        break;
+      }
+      if((strncmp("X",dtbuf,2) == 0))
+      {
+        printf("Reset request\n");
+        t = 0;
+        motor_turn_on(u);
+      }
+      /* tokenize with strtok, get the (expected) float values */
+      else
+      {
+        if(getctrl(dtbuf, &ud, &uq) == -1)
+        {
+          printf("Invalid iput\n");
+        } 
+        u[VD] = ud;
+        u[VQ] = uq;
+      }
+      step(t, t + TS, u);
+      t += TS;
+      n = (int)snprintf(dtbuf,sizeof(dtbuf), "%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",t, u[ID],u[IQ],u[VD],u[VQ],u[WR],u[THETA]);
+      z = write(c,dtbuf,n);
+      if ( z == -1)
+      {
+        report_err("Write()\n");
+      }
     }
     close(c);
   }
