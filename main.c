@@ -18,10 +18,10 @@
 
 void report_err(const char *on_what)
 {
-  if(errno != 0)
+  if (errno != 0)
   {
     fputs(strerror(errno), stderr);
-    fputs(": ",stderr);
+    fputs(": ", stderr);
   }
   fputs(on_what, stderr);
   fputc('\n', stderr);
@@ -31,24 +31,25 @@ void report_err(const char *on_what)
 int getctrl(char *buffer, float *ud, float *uq)
 {
   char *control = strtok(buffer, ",");
-  if(control == NULL)
+  if (control == NULL)
   {
     return -1;
   }
   *ud = atof(control);
   control = strtok(NULL, ",");
-  if(control == NULL)
+  if (control == NULL)
   {
     return -1;
   }
-  *uq = atof(control); 
+  *uq = atof(control);
 }
 
-int main() {
+int main()
+{
   /* motor parameters */
-  float t; /* time */
+  float t;                 /* time */
   float ud, uq, ref_speed; /* control signals */
-  float u[N]; /* buffer for output */
+  float u[N];              /* buffer for output */
   /* server parameters */
   int z;
   char *srvr_addr = NULL;
@@ -64,8 +65,8 @@ int main() {
   char dtbuf[256];
   srvr_addr = "127.0.0.1";
 
-  s = socket(PF_INET, SOCK_STREAM,0);
-  if(s == -1)
+  s = socket(PF_INET, SOCK_STREAM, 0);
+  if (s == -1)
   {
     report_err("socket()");
   }
@@ -76,12 +77,12 @@ int main() {
 
   len_inet = sizeof(adr_srvr);
   z = bind(s, (struct sockaddr *)&adr_srvr, len_inet);
-  if(z == -1)
+  if (z == -1)
   {
     report_err("bind(2)");
   }
-  z = listen(s,10);
-  if(z == -1)
+  z = listen(s, 10);
+  if (z == -1)
   {
     report_err("listen()");
   }
@@ -97,26 +98,27 @@ summary:
 - client : send control
 - server : get control, update motor, send observation 
 */
-  while(1)
+  while (1)
   {
     t = 0; /* reset motor sim to zero */
     /* wait for connection */
     len_inet = sizeof adr_clnt;
     c = accept(s, (struct sockaddr *)&adr_clnt, &len_inet);
-    if(c == -1)
+    if (c == -1)
     {
       report_err("accept()");
     }
-    while(1)
+    /* sim loop */
+    while (1)
     {
-      n = recv(c, dtbuf, sizeof(dtbuf) -1, 0);
+      n = recv(c, dtbuf, sizeof(dtbuf) - 1, 0);
       dtbuf[n] = '\0';
-      printf("Input: %s\n",dtbuf);
-      if(n == 0)
+      printf("Input: %s\n", dtbuf);
+      if (n == 0)
       {
         break;
       }
-      if((strncmp("X",dtbuf,2) == 0))
+      if ((strncmp("X", dtbuf, 2) == 0))
       {
         printf("Reset request\n");
         t = 0;
@@ -125,18 +127,18 @@ summary:
       /* tokenize with strtok, get the (expected) float values */
       else
       {
-        if(getctrl(dtbuf, &ud, &uq) == -1)
+        if (getctrl(dtbuf, &ud, &uq) == -1)
         {
           printf("Invalid iput\n");
-        } 
+        }
         u[VD] = ud;
         u[VQ] = uq;
       }
       step(t, t + TS, u);
       t += TS;
-      n = (int)snprintf(dtbuf,sizeof(dtbuf), "%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",t, u[ID],u[IQ],u[VD],u[VQ],u[WR],u[THETA]);
-      z = write(c,dtbuf,n);
-      if ( z == -1)
+      n = (int)snprintf(dtbuf, sizeof(dtbuf), "%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n", t, u[ID], u[IQ], u[VD], u[VQ], u[WR], u[THETA]);
+      z = write(c, dtbuf, n);
+      if (z == -1)
       {
         report_err("Write()\n");
       }

@@ -8,9 +8,9 @@ df.plot(x='t', y=['wr', 'te'])
 plt.title("ud = 50V, uq = 50V")
 plt.show()
 
-df.plot(x = 'wr', y='te')
+df.plot(x='wr', y='te')
 plt.show()
 
 
-df.plot(x='t', y=['id','iq'])
+df.plot(x='t', y=['id', 'iq'])
 plt.show()
