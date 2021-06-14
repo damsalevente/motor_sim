@@ -116,13 +116,17 @@ summary:
       printf("Input: %s\n", dtbuf);
       if (n == 0)
       {
-        break;
+        t = 0;
       }
       if ((strncmp("X", dtbuf, 2) == 0))
       {
         printf("Reset request\n");
         t = 0;
         motor_turn_on(u);
+      }
+      else if ((strncmp("exit", dtbuf, 5) == 0))
+      {
+        report_err("Exit signal()");
       }
       /* tokenize with strtok, get the (expected) float values */
       else
@@ -136,6 +140,14 @@ summary:
       }
       step(t, t + TS, u);
       t += TS;
+      if(t > 16000)
+      {
+        t=0.0;
+      }  
+      if (u[THETA] > 360)
+      {
+          u[THETA] = u[THETA]-360;
+      }
       n = (int)snprintf(dtbuf, sizeof(dtbuf), "%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n", t, u[ID], u[IQ], u[VD], u[VQ], u[WR], u[THETA]);
       z = write(c, dtbuf, n);
       if (z == -1)

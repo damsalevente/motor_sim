@@ -2,6 +2,7 @@
 # Prerequisites
 *.d
 motor_sim
+logs/*
 
 # Object files
 *.o
