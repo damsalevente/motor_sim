@@ -1,3 +1,4 @@
+#include "main.h"
 #include "controllers.h"
 #include "motor.h"
 #include "pid.h"
@@ -42,29 +43,25 @@ int getctrl(char *buffer, float *ud, float *uq)
     return -1;
   }
   *uq = atof(control);
+  return 0;
 }
 
 int main()
 {
   /* motor parameters */
   float t;                 /* time */
-  float ud, uq, ref_speed; /* control signals */
+  float ud, uq; /* control signals */
   float u[N];              /* buffer for output */
   /* server parameters */
   int z;
-  char *srvr_addr = NULL;
   char *srvr_port = "9099";
   struct sockaddr_in adr_srvr;
   struct sockaddr_in adr_clnt;
-  int len_inet;
+  unsigned int len_inet;
   int s;
   int c;
   int n;
-  time_t td;
-
   char dtbuf[256];
-  srvr_addr = "127.0.0.1";
-
   s = socket(PF_INET, SOCK_STREAM, 0);
   if (s == -1)
   {
@@ -90,7 +87,10 @@ int main()
   /* motor prep */
   write_header();
   motor_turn_on(u);
-
+  for(int i = 0; i < 16; i++)
+  {
+      printf("%s", fig[i]);
+  }
   /* 
      when a client connects, read out the control signals (ud,uq), and step 0.1
      send the id,iq currents, the input to verify, speed and rotor position 
@@ -143,7 +143,7 @@ summary:
       if(t > 16000)
       {
         t=0.0;
-      }  
+      }
       if (u[THETA] > 360)
       {
           u[THETA] = u[THETA]-360;

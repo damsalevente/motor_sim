@@ -4,6 +4,7 @@
 #include "motor.h"
 #include "pid.h"
 #include "stdio.h"
+//#define LOG
 
 static float yt_a[N]; /* yt for adaptive rk4 */
 static float yt2[N];
@@ -86,7 +87,9 @@ void adaptrk4(float t, float *ht, float *ht1, float eps, float y[], int n,
 
 void step(float t, float next_t, float u[])
 {
+#ifdef LOG
   FILE *out = fopen("plot.csv", "a");
+#endif
   float ht = STEP_SIZE;
   float ht1 = STEP_SIZE;
   float torque;
@@ -97,12 +100,14 @@ void step(float t, float next_t, float u[])
     torque = get_torque(&u[ID], &u[IQ]);
     t += ht;
   }
+#ifdef LOG
   fprintf(out, "%f,%f,%f,%f,%f,%f,%f,%f,%f\n", t, u[0], u[1], u[2], u[3], u[4],
           u[5], torque, u[THETA]);
   printf("Step:%lf\n\tI_d => %lf\t U_d => %lf\n\tI_q => %lf\tUq => "
          "%lf\n\tSpeed => %lf\n\tposition: %lf\n",
          t, u[0], u[VD], u[1], u[VQ], u[WR], u[THETA]);
   fclose(out);
+#endif
 }
 
 void motor_turn_on(float u[])
@@ -115,7 +120,9 @@ void motor_turn_on(float u[])
 
 void write_header()
 {
+#ifdef LOG
   FILE *out = fopen("plot.csv", "w");
   fprintf(out, "t,id,iq,wr,ud,uq,tl,te,theta\n");
   fclose(out);
+#endif
 }

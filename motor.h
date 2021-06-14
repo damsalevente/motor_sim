@@ -26,5 +26,8 @@ typedef struct motor_params
 
 /* right hand side equation for 3 motor equations, id, iq, and wr */
 void motor_eq(float t, float u[], float f[]);
+/* calculate torque from id iq */
 float get_torque(float *, float *);
+/* set the motor parameters */
+int set_motor(unsigned int idx);
 #endif
