@@ -1,12 +1,12 @@
 import socket
+import os
 import sys
 import gym
+import numpy as np
+import torch
 from gym import spaces
-from stable_baselines3 import PPO, SAC
-import numpy as np
+from stable_baselines3 import PPO, SAC, TD3
 from stable_baselines3.common.monitor import Monitor
-import os
-import numpy as np
 from stable_baselines3.common.results_plotter import load_results, ts2xy, plot_results
 from stable_baselines3.common.callbacks import BaseCallback
 
@@ -63,18 +63,22 @@ class Motor:
         self.wr = 0
         self.pos = 0
         self.s = s  # socket
+        self.UMAX = 350
+        self.IMAX = 1000
+        self.WMAX = 150
+        self.THETAMAX = 360
 
     def obs(self):
         # todo: work with bytes no need to convert
         line = self.s.recv(256).decode()
         line = line.split(',')
         if len(line) > 6:
-            self.ud = float(line[3])  # time is not needed
-            self.uq = float(line[4])
-            self.id = float(line[1])
-            self.iq = float(line[2])
-            self.wr = float(line[5])
-            self.pos = float(line[6])
+            self.ud = float(line[3]) / self.UMAX # time is not needed
+            self.uq = float(line[4]) / self.UMAX
+            self.id = float(line[1]) / self.IMAX
+            self.iq = float(line[2]) / self.IMAX
+            self.wr = float(line[5]) / self.WMAX
+            self.pos = float(line[6]) / self.THETAMAX
 
     def reset(self):
         self.s.sendall(b'X')
@@ -100,13 +104,13 @@ class MotorEnv(gym.Env):
   def __init__(self, s):
     super(MotorEnv, self).__init__()
     self.motor = Motor(s)
-    self.ref_speed = 30
+    self.ref_speed = 30 / self.motor.WMAX
     self.goodone = 0
     self.counter = 0
     # 0: ud, 1: uq, both has the same range, -350, 350 
     self.action_space = spaces.Box(np.array([-1,-1]), np.array([1,1]))
     # ud, uq, id, iq, wr, position, ref speed
-    self.observation_space = spaces.Box(np.array([-350,-350,-1000,-1000,-15000,0,-15000]),np.array([350,350,1000,1000,15000,360,15000 ])) 
+    self.observation_space = spaces.Box(np.array([-1,-1,-1,-1,-1,0,-1]),np.array([1,1,1,1,1,1,1])) 
 
 
   def step(self, action):
@@ -117,22 +121,23 @@ class MotorEnv(gym.Env):
     self.counter += 1
     state = np.array([self.motor.ud, self.motor.uq, self.motor.id, self.motor.iq, self.motor.wr, self.motor.pos, self.ref_speed])
     reward, done, info  = self.calc_reward()
-    if done:
-        state = env.reset()
+    if self.counter > 20:
+        done = True
     return state, reward, done, info
 
   def calc_reward(self):
-    err = (20 - (np.abs(self.motor.wr - self.ref_speed))) / 20 # 20 -2 / 20  -> 0.9 reward
+    err = 1 - (np.abs(self.motor.wr - self.ref_speed)) 
     done = False
     succ = False
-    if err > 0.9:
+    if err > 0.98:
         self.goodone += 1
         
     if self.counter > 20:
-        done = True
         if self.goodone > 15:
+            err += 5
+        if self.goodone > 19:
             succ = True
-            err += 100
+            err += 5
     return err, done, {'success':succ}
     
 
@@ -164,7 +169,7 @@ uq = 5
 s = None
 
 callback = SaveOnBestTrainingRewardCallback(
-            check_freq=512, log_dir='./logs/', extra_stuff='_check')
+            check_freq=4096, log_dir='./logs/', extra_stuff='_check')
 
 for res in socket.getaddrinfo(host, port, socket.AF_UNSPEC, socket.SOCK_STREAM):
     af, socktype, proto, canonname, sa = res
@@ -191,11 +196,13 @@ with s:
     env = Monitor(env, './logs/')
     obs = env.reset()
     if train:
-        model = SAC("MlpPolicy", env, tensorboard_log='./logs', verbose = 1)
-        model.learn(total_timesteps=1e5, callback = [callback])
+        policy_kwargs = dict(activation_fn=torch.nn.Tanh,
+                net_arch=[dict(pi=[32,32, 16], vf=[32,32, 16])])
+        model = PPO("MlpPolicy", env,learning_rate= 3e-3,policy_kwargs = policy_kwargs, tensorboard_log='./logs', verbose = 2)
+        model.learn(total_timesteps=1e6, callback = [callback])
     else:
         done = False
-        model = SAC.load('./logs/_check.zip')
+        model = PPO.load('./logs/_check.zip')
         while not done:
             action = model.predict(obs)
             obs, reward, done, info = env.step(action[0])

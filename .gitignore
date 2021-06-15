@@ -1,4 +1,6 @@
 .vscode/*
+build/*
+pmsm_server
 # Prerequisites
 *.d
 motor_sim
