@@ -1,4 +1,5 @@
 import socket
+import random 
 import os
 import sys
 import gym
@@ -106,6 +107,7 @@ class MotorEnv(gym.Env):
     self.motor = Motor(s)
     self.ref_speed = 30 / self.motor.WMAX
     self.goodone = 0
+    self.ep_len = 100
     self.counter = 0
     # 0: ud, 1: uq, both has the same range, -350, 350 
     self.action_space = spaces.Box(np.array([-1,-1]), np.array([1,1]))
@@ -115,30 +117,30 @@ class MotorEnv(gym.Env):
 
   def step(self, action):
     # Execute one time step within the environment
-    self.motor.control(action[0] * 350,action[1] * 350)
+    self.motor.control(action[0] * self.motor.UMAX,action[1] * self.motor.UMAX)
     self.motor.send_ctrl()
     self.motor.obs()
     self.counter += 1
     state = np.array([self.motor.ud, self.motor.uq, self.motor.id, self.motor.iq, self.motor.wr, self.motor.pos, self.ref_speed])
     reward, done, info  = self.calc_reward()
-    if self.counter > 20:
+    if self.counter > self.ep_len:
         done = True
     return state, reward, done, info
 
   def calc_reward(self):
-    err = 1 - (np.abs(self.motor.wr - self.ref_speed)) 
+    rew = 1 - (np.abs(self.motor.wr - self.ref_speed))
     done = False
     succ = False
-    if err > 0.98:
+    if rew > 0.99:
         self.goodone += 1
         
-    if self.counter > 20:
-        if self.goodone > 15:
-            err += 5
-        if self.goodone > 19:
+    if self.counter > self.ep_len:
+        if self.goodone > self.ep_len*0.9:
+            rew += 5
+        if self.goodone > self.ep_len*0.98:
             succ = True
-            err += 5
-    return err, done, {'success':succ}
+            rew += 5
+    return rew, done, {'success':succ}
     
 
   def reset(self):
@@ -146,6 +148,7 @@ class MotorEnv(gym.Env):
     self.motor.reset()
     self.counter = 0
     self.goodone = 0
+    self.ref_speed = random.randrange(0, 1)
     self.motor.obs()
     state = np.array([self.motor.ud, self.motor.uq, self.motor.id, self.motor.iq, self.motor.wr, self.motor.pos, self.ref_speed])
     return state
@@ -190,14 +193,14 @@ for res in socket.getaddrinfo(host, port, socket.AF_UNSPEC, socket.SOCK_STREAM):
 if s is None:
     print("could not open sokcet")
     sys.exit(1)
-train = False
+train = True
 with s:
     env = MotorEnv(s)  # create motor with socket
     env = Monitor(env, './logs/')
     obs = env.reset()
     if train:
         policy_kwargs = dict(activation_fn=torch.nn.Tanh,
-                net_arch=[dict(pi=[32,32, 16], vf=[32,32, 16])])
+                net_arch=[dict(pi=[16,16, 8], vf=[16,16, 8])])
         model = PPO("MlpPolicy", env,learning_rate= 3e-3,policy_kwargs = policy_kwargs, tensorboard_log='./logs', verbose = 2)
         model.learn(total_timesteps=1e6, callback = [callback])
     else:
