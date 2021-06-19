@@ -105,9 +105,9 @@ class MotorEnv(gym.Env):
   def __init__(self, s):
     super(MotorEnv, self).__init__()
     self.motor = Motor(s)
-    self.ref_speed = 30 / self.motor.WMAX
+    self.ref_speed = -1
     self.goodone = 0
-    self.ep_len = 100
+    self.ep_len = 20
     self.counter = 0
     # 0: ud, 1: uq, both has the same range, -350, 350 
     self.action_space = spaces.Box(np.array([-1,-1]), np.array([1,1]))
@@ -128,18 +128,24 @@ class MotorEnv(gym.Env):
     return state, reward, done, info
 
   def calc_reward(self):
-    rew = 1 - (np.abs(self.motor.wr - self.ref_speed))
+    rew = -0.5
+    err = np.abs(self.motor.wr - self.ref_speed)
     done = False
     succ = False
-    if rew > 0.99:
+
+    if err < 0.05:
+        rew += 0.5
+
+    if err < 0.01:
         self.goodone += 1
+        rew += 0.5
         
-    if self.counter > self.ep_len:
-        if self.goodone > self.ep_len*0.9:
-            rew += 5
-        if self.goodone > self.ep_len*0.98:
-            succ = True
-            rew += 5
+    if self.goodone > self.ep_len*0.9:
+        rew += 1
+
+    if self.goodone > self.ep_len*0.98:
+        succ = True
+        rew += 1
     return rew, done, {'success':succ}
     
 
@@ -148,7 +154,9 @@ class MotorEnv(gym.Env):
     self.motor.reset()
     self.counter = 0
     self.goodone = 0
-    self.ref_speed = random.randrange(0, 1)
+    self.ref_speed += 0.01
+    if self.ref_speed > 1 :
+        self.ref_speed = -1 
     self.motor.obs()
     state = np.array([self.motor.ud, self.motor.uq, self.motor.id, self.motor.iq, self.motor.wr, self.motor.pos, self.ref_speed])
     return state
@@ -194,13 +202,14 @@ if s is None:
     print("could not open sokcet")
     sys.exit(1)
 train = True
+train = False
 with s:
     env = MotorEnv(s)  # create motor with socket
     env = Monitor(env, './logs/')
     obs = env.reset()
     if train:
         policy_kwargs = dict(activation_fn=torch.nn.Tanh,
-                net_arch=[dict(pi=[16,16, 8], vf=[16,16, 8])])
+                net_arch=[dict(pi=[32,16, 16], vf=[32,16, 16])])
         model = PPO("MlpPolicy", env,learning_rate= 3e-3,policy_kwargs = policy_kwargs, tensorboard_log='./logs', verbose = 2)
         model.learn(total_timesteps=1e6, callback = [callback])
     else:
