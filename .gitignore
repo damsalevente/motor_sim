@@ -1,4 +1,5 @@
 .vscode/*
+*.csv
 build/*
 pmsm_server
 # Prerequisites

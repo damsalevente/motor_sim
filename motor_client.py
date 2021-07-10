@@ -2,6 +2,7 @@ import socket
 import random 
 import os
 import sys
+import subprocess
 import gym
 import numpy as np
 import torch
@@ -92,7 +93,7 @@ class Motor:
         self.uq = uq
 
     def log(self):
-        print('--------------\ncurrents> id=>{} A | iq=>{} A\nvoltages> ud=> {} V | uq=>{} V\nmotor> w_r => {}rad/sec | theta => {}'.format(self.id, self.iq, self.ud, self.uq, self.wr, self.pos))
+        print('--------------\ncurrents> id=>{} A | iq=>{} A\nvoltages> ud=> {} V | uq=>{} V\nmotor> w_r => {}rad/sec | theta => {}'.format(self.id, self.iq, self.ud, self.uq, self.wr*self.THETAMAX, self.pos))
 
     def send_ctrl(self):
         pkg = '{},{}'.format(self.ud, self.uq)
@@ -105,7 +106,7 @@ class MotorEnv(gym.Env):
   def __init__(self, s):
     super(MotorEnv, self).__init__()
     self.motor = Motor(s)
-    self.ref_speed = -1
+    self.ref_speed = 0.5
     self.goodone = 0
     self.ep_len = 20
     self.counter = 0
@@ -154,7 +155,7 @@ class MotorEnv(gym.Env):
     self.motor.reset()
     self.counter = 0
     self.goodone = 0
-    self.ref_speed += 0.01
+    self.ref_speed += 0.001
     if self.ref_speed > 1 :
         self.ref_speed = -1 
     self.motor.obs()
@@ -168,8 +169,8 @@ class MotorEnv(gym.Env):
   def close(self):
     self.motor.close()
 
-
-
+# running pmsm motor simulator
+subprocess.Popen(["./pmsm_server"])
 # setting up webserver 
 host = '127.0.0.1'
 port = 9099
@@ -207,9 +208,10 @@ with s:
     env = MotorEnv(s)  # create motor with socket
     env = Monitor(env, './logs/')
     obs = env.reset()
+    env.ref_speed = 0.8
     if train:
         policy_kwargs = dict(activation_fn=torch.nn.Tanh,
-                net_arch=[dict(pi=[32,16, 16], vf=[32,16, 16])])
+                net_arch=[dict(pi=[32,32,16, 16], vf=[32,32,16, 16])])
         model = PPO("MlpPolicy", env,learning_rate= 3e-3,policy_kwargs = policy_kwargs, tensorboard_log='./logs', verbose = 2)
         model.learn(total_timesteps=1e6, callback = [callback])
     else:
