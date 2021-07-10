@@ -28,7 +28,7 @@ void control_runner(float *w_ref, float *wr, float *id, float *iq, float *ud, fl
     control_fast(&id_ref, &iq_ref, id, iq, ud, uq);
 
     count++;
-    if(count = COUNT_MAX)
+    if((count == COUNT_MAX))
     {
         count = 0;
     }

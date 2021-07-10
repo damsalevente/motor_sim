@@ -14,7 +14,6 @@ int main(int argc, char *argv[])
 {
     /* motor parameters */
     float t;  /* time */
-    float ud, uq; /* control signals */
     float u[N] = {0.0};   /* buffer for output */
     int duration;
     float w_ref = 0.0;

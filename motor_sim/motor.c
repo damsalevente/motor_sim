@@ -53,13 +53,13 @@ int set_motor(unsigned int idx)
  */
 void motor_eq(float t, float u[], float f[]) {
 
-    f[ID] = -pmsm->R / pmsm->Ld * u[0] + pmsm->Lq / pmsm->Ld * u[2] * u[1] +
-        1 / pmsm->Ld * u[3];
-    f[IQ] = -pmsm->R / pmsm->Lq * u[1] - pmsm->Ld / pmsm->Lq * pmsm->P * u[2] * u[0] -
-        (pmsm->lambda * pmsm->P * u[2]) / pmsm->Lq + 1 / pmsm->Lq * u[4];
+    f[ID] = -pmsm->R / pmsm->Ld * u[ID] + pmsm->Lq / pmsm->Ld * pmsm->P * u[WR] * u[IQ] +
+        1 / pmsm->Ld * u[VD];
+    f[IQ] = -pmsm->R / pmsm->Lq * u[IQ] - pmsm->Ld / pmsm->Lq * pmsm->P * u[WR] * u[ID] -
+        (pmsm->lambda * pmsm->P * u[WR]) / pmsm->Lq + 1 / pmsm->Lq * u[VQ];
     f[WR] = pmsm->P / pmsm->J *
-        (pmsm->lambda * u[1] + (pmsm->Ld - pmsm->Lq) * u[1] * u[0]) -
-        pmsm->B / pmsm->J * u[2] - u[5] / pmsm->J;
+        (pmsm->lambda * u[1] + (pmsm->Ld - pmsm->Lq) * u[IQ] * u[ID]) -
+        pmsm->B / pmsm->J * u[WR] - u[TI] / pmsm->J;
     f[VD] = 0;
     f[VQ] = 0;
     f[TI] = 0;
