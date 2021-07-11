@@ -9,7 +9,7 @@ int count = 0;
 float command_signal = 0.0;
 
 static pi_struct controller_w = {
-    .K = 1, .I = 0.01, .lim_max = 50, .lim_min = -50};
+    .K = 0.05, .I = 0.01, .lim_max = 50, .lim_min = -50};
 static pi_struct controller_id = {
     .K = 2.5, .I = 0.01, .lim_max = 300, .lim_min = -300, .buffer = 0.0};
 static pi_struct controller_iq = {

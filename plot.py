@@ -4,13 +4,6 @@ import matplotlib.pyplot as plt
 df = pd.read_csv('./plot.csv')
 df['p'] = df['id'] * df['ud']
 
-df.plot(y=['wr', 'te'])
-plt.title("")
-plt.show()
-
-df.plot(x='wr', y='te')
-plt.show()
-
-
-df.plot(y = ['id', 'iq', 'wr'])
+df.plot(x = 't', y = ['wr', 'te'])
+plt.xlabel('time[0.01s]')
 plt.show()
