@@ -8,12 +8,13 @@
 #include <string.h>
 #include <time.h>
 
-#define TS 0.01 /* time step for simulation */
+#define TS 0.05 /* time step for simulation */
 
 int main(int argc, char *argv[])
 {
     /* motor parameters */
     float t;  /* time */
+    int counter = 0;
     int ctrl_run = 0;
     float u[N] = {0.0};   /* buffer for output */
     int duration;
@@ -31,6 +32,7 @@ int main(int argc, char *argv[])
         duration = atoi(argv[1]);
         w_ref = atoi(argv[2]);
     }
+    set_motor(0);
     motor_turn_on(u);
     t = 0; /* reset motor sim to zero */
     /* wait for connection */
@@ -40,14 +42,11 @@ int main(int argc, char *argv[])
         step(t, t + TS, u);
         /* run the controller */
         control_runner(&w_ref, &u[WR], &u[ID], &u[IQ], &u[VD], &u[VQ]); 
-        t += TS;
-
-
-        /* this should be somewhere else */
-        if (u[THETA] > 360)
+        if(t > duration / 2 )
         {
-            u[THETA] = u[THETA]-360;
+            w_ref = -w_ref;
         }
+        t += TS;
     }
     return 0;
 }

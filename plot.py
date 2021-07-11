@@ -12,5 +12,5 @@ df.plot(x='wr', y='te')
 plt.show()
 
 
-df.plot(y = ['id', 'iq'])
+df.plot(y = ['id', 'iq', 'wr'])
 plt.show()

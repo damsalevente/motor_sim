@@ -58,7 +58,7 @@ void motor_eq(float t, float u[], float f[]) {
     f[IQ] = -pmsm->R / pmsm->Lq * u[IQ] - pmsm->Ld / pmsm->Lq * pmsm->P * u[WR] * u[ID] -
         (pmsm->lambda * pmsm->P * u[WR]) / pmsm->Lq + 1 / pmsm->Lq * u[VQ];
     f[WR] = pmsm->P / pmsm->J *
-        (pmsm->lambda * u[1] + (pmsm->Ld - pmsm->Lq) * u[IQ] * u[ID]) -
+        (pmsm->lambda * u[IQ] + (pmsm->Ld - pmsm->Lq) * u[IQ] * u[ID]) -
         pmsm->B / pmsm->J * u[WR] - u[TI] / pmsm->J;
     f[VD] = 0;
     f[VQ] = 0;

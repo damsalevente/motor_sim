@@ -9,18 +9,19 @@ int count = 0;
 float command_signal = 0.0;
 
 static pi_struct controller_w = {
-    .K = 1, .I = 0.0005, .lim_max = 50, .lim_min = -50};
+    .K = 1, .I = 0.01, .lim_max = 50, .lim_min = -50};
 static pi_struct controller_id = {
-    .K = 10, .I = 0.0001, .lim_max = 300, .lim_min = -300, .buffer = 0.0};
+    .K = 2.5, .I = 0.01, .lim_max = 300, .lim_min = -300, .buffer = 0.0};
 static pi_struct controller_iq = {
-    .K = 10, .I = 0.0001, .lim_max = 300, .lim_min = -300, .buffer = 0.0};
+    .K = 2.5, .I = 0.01, .lim_max = 300, .lim_min = -300, .buffer = 0.0};
 
 void control_runner(float *w_ref, float *wr, float *id, float *iq, float *ud,
                     float *uq) {
   float id_ref;
   float iq_ref;
 
-  if (count == 0) {
+  if (count == 0)
+  {
     control_slow(w_ref, wr, &command_signal);
   }
   id_ref = 0;
