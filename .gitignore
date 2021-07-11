@@ -1,7 +1,9 @@
 .vscode/*
 *.csv
 build/*
+# build outputs
 pmsm_server
+test_server
 # Prerequisites
 *.d
 logs/*
