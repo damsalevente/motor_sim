@@ -2,20 +2,19 @@
 
 float pi(pi_struct *dev, float *target, float *currval)
 {
-    float err;
-    float answer;
-    err = (*target) - (*currval);
-    dev->buffer += err;
+    dev->err = (*target) - (*currval);
+    dev->buffer += dev->err;
     
-    answer = dev->K * err + dev->I * dev->buffer;
+    dev->res = dev->K * dev->err + dev->I * dev->buffer + dev->D * (dev->err-dev->prev_e);
 
-    /*answer = answer > dev->lim_max ? dev->lim_max : answer;
-    answer = answer < dev->lim_min ? dev->lim_min : answer;*/
-    return answer;
+    dev->res = dev->res > dev->lim_max ? dev->lim_max : dev->res;
+    dev->res = dev->res < dev->lim_min ? dev->lim_min : dev->res;
+    return dev->res;
 }
 
-void change_params(pi_struct *dev, float k, float i)
+void change_params(pi_struct *dev, float k, float i, float d)
 {
    dev->K = k;
    dev->I = i;
+   dev->D = d;
 }

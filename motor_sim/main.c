@@ -90,15 +90,15 @@ int main()
   motor_turn_on(u);
   for(int i = 0; i < 16; i++)
   {
-      printf("%s", fig[i]);
+    printf("%s", fig[i]);
   }
   /* 
-     when a client connects, read out the control signals (ud,uq), and step 0.1
-     send the id,iq currents, the input to verify, speed and rotor position 
-summary: 
-- client : send control
-- server : get control, update motor, send observation 
-*/
+  when a client connects, read out the control signals (ud,uq), and step 0.1
+  send the id,iq currents, the input to verify, speed and rotor position 
+  summary: 
+  - client : send control
+  - server : get control, update motor, send observation 
+  */
   while (1)
   {
     t = 0; /* reset motor sim to zero */
@@ -144,7 +144,7 @@ summary:
       /* this should be somewhere else */
       if (u[THETA] > 360)
       {
-          u[THETA] = u[THETA]-360;
+        u[THETA] = u[THETA]-360;
       }
       n = (int)snprintf(dtbuf, sizeof(dtbuf), "%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n", t, u[ID], u[IQ], u[VD], u[VQ], u[WR], u[THETA]);
 
