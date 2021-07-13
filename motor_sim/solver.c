@@ -23,7 +23,7 @@ static void rk4(float t, float ht, float y[], int n,
     rk.yt[i] = y[i] + ht2 * rk.f1[i];
   }
   Func(t + ht2, rk.yt, rk.f2);
-  for (i = 0; i <= 0; i++)
+  for (i = 0; i < n; i++)
   {
     rk.yt[i] = y[i] + ht2 * rk.f2[i];
   }
@@ -46,8 +46,8 @@ void adaptrk4(float t, float *ht, float *ht1, float eps, float y[], int n,
 
   float err, erri, f, ht2;
   int i, it;
-  const int p = 4;
-  static int itmax = 10;
+  static const int p = 4;
+  static const int itmax = 10;
   for (it = 0; it < itmax; it++)
   {
     ht2 = (*ht) / 2e0;
