@@ -34,4 +34,4 @@ tensorboard data inside log folder
     tensorboard --logdir ./logs 
 
 
-![image for fun](withth_te.png)
+![image for fun](with_te.png)
