@@ -69,13 +69,16 @@ impl Rk4AdaptSolver{
         let mut erri: f32;
         let mut f: f32;
         let mut ht2: f32;
+        println!("y length{}", y.len());
         let mut yt2 = y.to_vec();
+        println!("yt length{}", yt2.len());
         for iterations in 0..9 {
             if iterations >= 9{
                 println!("max number of iterations exceeded!");
             }
             ht2 = ht / 2.0;
             let mut yt_a = y.to_vec();
+        println!("yt length{}", yt_a.len());
             self.rk4(t, ht, &mut yt_a,n, func);
             self.rk4(t, ht2, &mut yt_a,n, func);
             self.rk4(t+ht2, ht2, &mut yt2,n, func);
@@ -110,8 +113,10 @@ impl Rk4AdaptSolver{
 
     fn rk4(&mut self, t: f32, ht: f32, y: &mut Vec<f32>, n: i32, func: fn(MotorParams, f32, &mut Vec<f32>) -> Vec<f32>)
     {
-
         let mut yt: Vec<f32> = Vec::with_capacity(n as usize);
+        for _i in 0..n{
+            yt.push(0.0);
+        }
         let ht2 = ht / 2.0;
         let f1 = func(self.params, t, y);
         for ((yt_i, y_i), f_i) in yt.iter_mut().zip(y.iter()).zip(f1.iter()) {
@@ -159,7 +164,7 @@ impl Solver for Rk4AdaptSolver{
         while t + ht < next_t
         {
             ht = ht1;
-            self.adaptrk4(t, ht, ht1, 1e-3, u, self.n as i32, func);
+            self.adaptrk4(t, ht, ht1, 1e-2, u, self.n as i32, func);
         }
         return self.y.to_vec();
     }
@@ -182,7 +187,7 @@ struct Motor
 
 fn pmsm_equation(params: MotorParams, t: f32, u: &mut Vec<f32>) -> Vec<f32>
 {
-    let mut result: Vec<f32> = Vec::with_capacity(6);
+    let mut result: Vec<f32> = vec![0.0;6];
     result[0] = -params.R / params.Ld * u[0] + params.Lq / params.Ld * params.P * u[2] * u[1] + 1.0/params.Ld * u[3];
     result[1] = -params.R/ params.Lq * u[1] - params.Ld / params.Lq * params.P * u[3] * u[0] - (params.lambda * params.P * u[2]) / params.Lq /params.Lq + 1.0 / params.Lq * u[4]; 
     result[2] = params.P / params.J * (params.lambda * u[1] + (params.Ld - params.Lq) * u[1] * u[0]) - params.B / params.J * u[3] - u[5] / params.J;
@@ -205,7 +210,7 @@ impl Motor
             theta: 0.0,
             speed: 0.0,
             torque: 0.0,
-            u: Vec::with_capacity(6),
+            u: vec![0.0; 6]
         }
     }
     fn step(&mut self, t: f32, dt: f32)
@@ -218,10 +223,8 @@ impl Motor
 
 fn main() {
     let mut motor: Motor = Motor::default();
-    motor.step(1.0, 0.05);
-    motor.step(1.0, 1.05);
-    motor.step(1.0, 3.05);
-    motor.step(1.0, 5.05);
+    println!("motor {}", motor.u.len());
+    motor.step(0.0,1.0);
     //motor.currents(); /* tuple */
     //motor.voltages() /* tuple */
     //motor.speed;
