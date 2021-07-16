@@ -79,9 +79,9 @@ impl Rk4AdaptSolver{
             ht2 = ht / 2.0;
             let mut yt_a = y.to_vec();
         println!("yt length{}", yt_a.len());
-            self.rk4(t, ht, &mut yt_a,n, func);
-            self.rk4(t, ht2, &mut yt_a,n, func);
-            self.rk4(t+ht2, ht2, &mut yt2,n, func);
+            self.rk4(t, ht,&mut yt_a,n, func);
+            self.rk4(t, ht2,&mut yt_a,n, func);
+            self.rk4(t+ht2, ht2,&mut yt2,n, func);
             err = 0.0;
             for iter in 0..n-1{
                 let i = iter as usize;
@@ -125,7 +125,7 @@ impl Rk4AdaptSolver{
 
         let f2 = func(self.params, t + ht2, &mut yt);
         for ((yt_i, y_i), f_i) in yt.iter_mut().zip(y.iter()).zip(f2.iter()) {
-            *yt_i = *y_i + ht2 * (*f_i);
+            *yt_i = y_i + ht2 * (f_i);
         }
 
         let f3 = func(self.params, t + ht, &mut yt);
@@ -138,6 +138,7 @@ impl Rk4AdaptSolver{
         for iter in 0..n-1{
             let i = iter as usize;
             y[i] += ht6 * (f1[i] + 2.0 * (f2[i] + f3[i]) + f4[i]);
+            println!("y value: {}", y[i]);
         }
         self.x = self.x + ht;
         self.y = y.to_vec();
@@ -159,12 +160,14 @@ impl Solver for Rk4AdaptSolver{
     }
     fn step(self: &mut Rk4AdaptSolver,u: &mut Vec<f32>, t:f32, next_t: f32, func: fn(MotorParams, f32, &mut Vec<f32>) -> Vec<f32>) -> Vec<f32>
     {
-        let mut ht:f32 = 0.01; /* todo */
-        let ht1:f32 = 0.01; /* todo */
-        while t + ht < next_t
+        let mut ht:f32 = 0.001; /* todo */
+        let ht1:f32 = 0.001; /* todo */
+        let mut time: f32 = t;
+        while time + ht < next_t
         {
             ht = ht1;
             self.adaptrk4(t, ht, ht1, 1e-2, u, self.n as i32, func);
+            time += ht;
         }
         return self.y.to_vec();
     }
@@ -215,7 +218,7 @@ impl Motor
     }
     fn step(&mut self, t: f32, dt: f32)
     {
-        self.solver.step(&mut self.u, t, t+dt, pmsm_equation) ;
+        self.u = self.solver.step(&mut self.u, t, t+dt, pmsm_equation) ;
     }
 }
 
@@ -224,7 +227,10 @@ impl Motor
 fn main() {
     let mut motor: Motor = Motor::default();
     println!("motor {}", motor.u.len());
-    motor.step(0.0,1.0);
+    motor.u[0] = 100.0;
+    motor.u[2] = 200.0;
+    motor.step(0.0, 5.01);
+    println!("{}", motor.u[0]);
     //motor.currents(); /* tuple */
     //motor.voltages() /* tuple */
     //motor.speed;
