@@ -11,6 +11,70 @@ struct MotorParams{
     lambda: f32
 }
 
+struct Controller{
+    /* parameters */
+    p: f32,
+    i: f32,
+    d: f32,
+    /* errors */
+    err_d: f32, /* previous error for d */
+    err_i: f32, /* sum of errors for i */
+    /* limits */
+    minimum: f32,
+    maximum: f32,
+    integral_min: f32,
+    integral_max: f32,
+
+    /* target */
+    target: f32,
+}
+impl Controller{
+    fn new(p: f32, i: f32, d: f32, min: f32, M: f32) -> Controller {
+        Controller {p:p,
+        i:i,
+        d:d,
+        err_d: 0.0,
+        err_i: 0.0,
+        minimum: min,
+        maximum: M,
+        integral_min: min,
+        integral_max: M,
+        target: 0.0,
+        }
+    }
+    /* call to set the target to control to */
+    fn set_reference(&mut self, target: f32) {
+        self.target = target;
+    }
+
+    /* get the input value for the desired target, it should be set beforehand */
+    fn run(&mut self, u: f32) -> f32 {
+        let err = self.target - u;
+        let err_d = err - self.err_d;
+        self.err_i += err;
+
+        let mut ctrl_sig = self.p * err +  /* P */
+                       self.i * self.err_i + /* I */
+                       self.d * self.err_d;  /* D */
+
+        if ctrl_sig < self.minimum {
+            ctrl_sig = self.minimum;
+        }
+        else if ctrl_sig > self.maximum {
+            ctrl_sig = self.maximum;
+        }
+        /*
+        if self.err_i < self.integral_min {
+            self.err_i = self.integral_min;
+        }
+        else if self.err_i > self.integral_max {
+            self.err_i = self.integral_max;
+        }
+        */
+        return ctrl_sig;
+    }
+}
+
 impl MotorParams{
     fn SmallMotor() -> MotorParams
     {
@@ -61,7 +125,7 @@ impl Rk4AdaptSolver{
             n: n,
         }
     }
-    fn adaptrk4(&mut self, t: f32, mut ht: f32, mut ht1: f32, eps: f32,y: &mut Vec<f32>, n: i32, func: fn(MotorParams, f32, &mut Vec<f32>) -> Vec<f32> , params: MotorParams) -> Vec<f32>
+    fn adaptrk4(&mut self, t: f32, ht: &mut f32, mut ht1: f32, eps: f32,y: &mut Vec<f32>, n: i32, func: fn(MotorParams, f32, &mut Vec<f32>) -> Vec<f32> , params: MotorParams) -> Vec<f32>
     {
         let mut err: f32;
         let mut erri: f32;
@@ -73,10 +137,10 @@ impl Rk4AdaptSolver{
             if iterations >= 9{
                 println!("max number of iterations exceeded!");
             }
-            ht2 = ht / 2.0;
+            ht2 = (*ht) / 2.0;
             yt2 = y.to_vec();
             yt_a = y.to_vec();
-            self.rk4(t, ht,&mut yt_a,n, func, params);
+            self.rk4(t, *ht,&mut yt_a,n, func, params);
             self.rk4(t, ht2,&mut yt2,n, func, params);
             self.rk4(t+ht2, ht2,&mut yt2,n, func, params);
             err = 0.0;
@@ -93,17 +157,17 @@ impl Rk4AdaptSolver{
                 }
             }
             f = 1.0;
-            if err > 0.0 {
+            if err != 0.0 {
                 f = 0.9 * libm::powf(eps / err, 0.25);
             }
             if f > 5.0 {
                 f = 5.0;
             }
-            ht1 = f * ht;
+            ht1 = f * (*ht);
             if err <= eps {
                 break;
             }
-            ht = ht1;
+            *ht = ht1;
         }
         *y = yt2;
         return y.to_vec();
@@ -114,18 +178,18 @@ impl Rk4AdaptSolver{
         let mut yt: Vec<f32> = vec![0.0;n as usize];
         let ht2 = ht / 2.0;
         let f1 = func(params, t, y);
-        for ((yt_i, y_i), f_i) in yt.iter_mut().zip(y.iter()).zip(f1.iter()) {
-            *yt_i = y_i + ht2 * f_i;
+        for i in (0..(n as usize)-1 as usize){
+            yt[i] = y[i] + ht2 * f1[i];
         }
 
         let f2 = func(params, t + ht2, &mut yt);
-        for ((yt_i, y_i), f_i) in yt.iter_mut().zip(y.iter()).zip(f2.iter()) {
-            *yt_i = y_i + ht2 * (f_i);
+        for i in (0..(n as usize)-1 as usize) {
+            yt[i] = y[i] + ht2 * f2[i];
         }
 
         let f3 = func(params, t + ht, &mut yt);
-        for ((yt_i, &y_i), &f_i) in yt.iter_mut().zip(y.iter()).zip(f3.iter()) {
-            *yt_i = y_i + ht * f_i;
+        for i in (0..(n as usize)-1 as usize){
+            yt[i] = y[i] + ht * f3[i];
         }
 
         let f4 = func(params,t + ht, &mut yt);
@@ -155,12 +219,11 @@ impl Solver for Rk4AdaptSolver{
     {
         let mut ht:f32 = 0.001; /* todo */
         let mut res: Vec<f32> = u.to_vec();
-        let ht1:f32 = 0.01; /* todo */
+        let ht1:f32 = 0.0001; /* todo */
         let mut time: f32 = t;
         while time + ht < next_t
         {
-            ht = ht1;
-            res = self.adaptrk4(t, ht, ht1, 1e-2, u, self.n as i32, func, params);
+            res = self.adaptrk4(t, &mut ht, ht1, 1e-2, u, self.n as i32, func, params);
             time += ht;
         }
     return res;
@@ -215,14 +278,11 @@ impl Motor
 
     fn calc_theta(&mut self) {
         self.theta += self.speed();
-        if self.theta > 360.0
-        {
-            self.theta -= 360.0;
-        }
-        if self.theta < -360.0
-        {
-            self.theta += 360.0;
-        }
+        self.theta %= 360.0;
+    }
+    fn set_voltages(&mut self, ud: f32, uq: f32){
+        self.u[3] = ud;
+        self.u[4] = uq;
     }
     fn speed(&self) -> f32{
         return self.u[2];
@@ -250,10 +310,13 @@ impl Motor
     }
     fn print(&self)
     {
+        println!("----------------");
+        println!("Time: {}", self.t);
         println!("ud:\t{}V\tuq:\t{}V", self.ud(), self.uq());
         println!("id:\t{}A\tiq:\t{}A", self.id(), self.iq());
         println!("Speed:\t{} rad/s", self.speed());
         println!("Theta:\t{} degree", self.theta());
+        println!("-----------------");
     }
 }
 
@@ -261,10 +324,22 @@ impl Motor
 
 fn main() {
     let mut motor: Motor = Motor::default();
-    motor.u[3] = 0.0;
-    motor.u[4] = 200.0;
-    for i in 0..100{
-        motor.step(0.1);
+
+    let mut iq_ctrl: Controller = Controller::new(0.05, 0.01, 0.000, 3000.0, -3000.0);
+    let mut id_ctrl: Controller  = Controller::new(1.5, 0.01, 0.000, 3000.0, -3000.0);
+    let mut wr_controller: Controller = Controller::new(1.5, 0.01, 0.000, 30000.0, -30000.0);
+
+    let target_speed = 5.0;
+    let mut curr_cmd = 0.5;
+    wr_controller.set_reference(target_speed);
+    for i in 0..10{
+        if i % 5 == 0 {
+            curr_cmd = wr_controller.run(motor.speed()); 
+        }
+        id_ctrl.set_reference(0.0);
+        iq_ctrl.set_reference(curr_cmd); 
+        motor.set_voltages(id_ctrl.run(motor.id()), iq_ctrl.run(motor.iq()));
+        motor.step(0.05);
         motor.print();
     }
 }
