@@ -93,7 +93,7 @@ public:
         output = 0.0;
     }
 
-    float run(float &target, float &measurement)
+    float run(float target, float &measurement)
     {
         error = target - measurement;
         output = m_P * error + m_I * integral + m_D * (error - prev);
@@ -125,8 +125,7 @@ private:
     float iq;
 
 public:
-
-    Vector(float id, float iq):id(id), iq(iq) {};
+    Vector(float id, float iq) : id(id), iq(iq){};
     float u()
     {
         return id;
@@ -135,8 +134,18 @@ public:
     {
         return iq;
     }
-   
-}; 
+};
+
+typedef struct
+{
+    float ud;
+    float uq;
+    float ud60; /* ud value for the next sector (60 degrees diference) */
+    float uq60;
+    float angle; /* start angle in degrees  */
+    int s;       /* which bridge(s) should be open */
+    int s60;     /* which bridge(s) should be open */
+} Sector;
 
 class SpeedController
 {
@@ -144,22 +153,35 @@ private:
     float cur_speed;    /* actual speed reading from hall sensors / encoder */
     float target_speed; /* desired speed to user */
     float sp_speed;     /* setpoint for ramping( we cannot increase the speed at one timestep, motor goes F) */
-
     float speed_command;
-    bool enable_ramp;
     float frequency; /* switching frequency */
-    float incr; /* increment for ramp up/down */
-    float id;
+    float incr;      /* increment for ramp up/down */
+    float id;        /* measured d reference current */
     float iq;
-    float ud;
+    float ud; /* calculated d reference command from PID controller */
     float uq;
-    float VDC;
+    float VDC; /* dc voltage that is attached to it */
+    float kc[3][3];
+    bool enable_ramp; /* whether to increase/decrease the internal setpoint */
+    float pwm_u;
+    float pwm_v;
+    float pwm_w;
+    const Sector sectors[8] = {
+        /* ud1 uq1 ud2 uq2 degree start, code1 code 2 */
+        {0, 0, 0, 0, 0, 0, 0},
+        {2 / 3, 0, 1 / 3, 1 / sqrt(3), 0, 1, 3},
+        {1 / 3, 1 / sqrt(3), -1 / 3, 1 / sqrt(3), 60, 3, 2},
+        {-1 / 3, 1 / sqrt(3), -2 / 3, 0, 120, 2, 6},
+        {-2 / 3, 0, -1 / 3, -1 / sqrt(3), 180, 6, 4},
+        {-1 / 3, -1 / sqrt(3), 1 / 3, -1 / sqrt(3), 240, 4, 5},
+        {1 / 3, -1 / sqrt(3), 2 / 3, 0, 300, 5, 1},
+        {0, 0, 0, 0, 0, 7, 7}};
     PID Speed_pid{2, 0.5, 0.05};
     PID ID_pid{3, 3, 4};
     PID IQ_pid{3, 3, 4};
-    float kc[3][3];
+
 public:
-    SpeedController(float dc_voltage = 7.4, float incr = 0.1):VDC(dc_voltage), incr(incr)
+    SpeedController(float dc_voltage = 7.4, float incr = 0.1) : VDC(dc_voltage), incr(incr)
     {
         cur_speed = 0.0;
         target_speed = 0.0;
@@ -177,7 +199,7 @@ public:
     }
     void loop_speed(float u[3], float position)
     {
-        setkc(position);
+        set_Kc(position);
         calcIdIq(u);
         run_speed();
     }
@@ -187,119 +209,117 @@ public:
     }
     void loop_current()
     {
-        ud = ID_pid.run(id_command, id);
+        ud = ID_pid.run(speed_command, id);
         uq = IQ_pid.run(0.0, iq); /* try to make it zero  */
-        /* this gives like a voltage vector for me */
+        update_pwm();             /* at least here */
     }
-    void calc_freq()
+    void update_pwm()
     {
-        /* https://www.motioncontroltips.com/what-is-space-vector-pulse-width-modulation-svpwm/
-         */
-        float f_u, f_v, f_w;
-        float S_u, S_v, S_w;
-        int states[8];
-        static constexpr float sectors[8][7] ={
-         /* ud1 uq1 ud2 uq2 degree start, code1 code 2 */
-           {0, 0, 0, 0, 0, 0, 0},
-           {2/3, 0, 1/3, 1/ sqrt(3),0, 1, 3 },
-           {1/3, 1/sqrt(3), -1/3, 1/sqrt(3), 60, 3, 2 },
-           {-1/3, 1/sqrt(3), -2/3, 0, 120,2, 6 },
-           {-2/3, 0, -1/3, -1/sqrt(3), 180, 6, 4 },
-           {-1/3, -1/sqrt(3), 1/3, -1/sqrt(3), 240, 4, 5 },
-           {1/3, -1/sqrt(3), 2/3, 0, 300, 5, 1 },
-           {0, 0, 0, 0, 0, 7, 7 }
-        };
-        f_u = (2 * S_u - S_v - S_w) / 3.0;
-        f_v = (2 * S_v - S_u - S_w) / 3.0;
-        f_w = (2 * S_w - S_u - S_v) / 3.0;
-        /* normalize */
+
+        int sector_index = 0; /* select one plane from the hexagon */
+        /* scale vectors to -1 1 */
         ud /= VDC;
+        ud = ud > 1 ? 1 : ud;
+        ud = ud < -1 ? -1 : ud;
+
         uq /= VDC;
-        int sector_index = 0; /* degrees ? */
-        /*  it should give the t1 t2 t0 t7 frequencies as follows
-            t1 and t2 builds from the 6 vectors, vector math -> this will give the vector angle
-            this vector size and the maximum voltage will be added by: (vdc + 0) / t_vdc = v_desired
-            d vector is always the rotor state, so if someone want me to go to 3 halves, that means we are going fast,
-            if i need to move for like 2 cm then it's not that big
-        */
-       for(int i = 0; i < 6; i++)
-       {
-           float ud_min;
-           float ud_max;
-           float uq_min;
-           float uq_max;
-           if(sectors[i][0] < sectors[i][2])
-           {
-               ud_min = sectors[i][0];
-               ud_max = sectors[i][2];
-           }
-           else
-           {
-               ud_min = sectors[i][2];
-               ud_max = sectors[i][0];
-           }
-           if(sectors[i][1] < sectors[i][3])
-           {
-               uq_min = sectors[i][1];
-               uq_max = sectors[i][3];
-           }
-           else
-           {
-               uq_min = sectors[i][3];
-               uq_max = sectors[i][1];
-           }
-           if(ud >= ud_min && ud <= ud_max && 
-               uq >= uq_min && uq <= uq_max)
-           {
-               sector_index = i;
-               break;
-           }
-       }
-       /* build the vector */
-       float td;
-       float tq;
-       calc_amount(sectors[sector_index][0] * VDC,
-                   sectors[sector_index][2] * VDC,
-                   sectors[sector_index][1] * VDC,
-                   sectors[sector_index][3] * VDC,
-                   td, tq);
-        float t0 = 1 - td - tq; /* 0.2x first vector + 0.4x second vector, 0.4 is missing from whole */
-        float t0 = 1.0/frequency;
-        /* based on the two sectors  */
-        float u_on_time = td * ((int)sectors[sector_index][5] & 1) + tq * ((int)sectors[sector_index][6] & 1) + 0.5 * t0 * 1;
-        float v_on_time = td * ((int)sectors[sector_index][5]>>1 & 1) + tq * ((int)sectors[sector_index][6]>>1 & 1)+ 0.5 * t0 * 1;
-        float w_on_time = td * ((int)sectors[sector_index][5]>>2 & 1) + tq * ((int)sectors[sector_index][6]>>2 & 1)+ 0.5 * t0 * 1;
-        
+        uq = uq > 1 ? 1 : uq;
+        uq = uq < -1 ? -1 : uq;
+        sector_index = get_sector_index();
+        /* build the pwm signal times */
+        calc_pwm_signals(sectors[sector_index]);
     }
 
-    /* 
-        A: ud1 
-        B: ud2 
-        C: uq1
-        D: uq2 
-    */
-    void calc_amount(float A, float B, float C, float D, float &x, float &y)
+    void calc_pwm_signals(const Sector &s)
     {
-        y = (ud- uq*C) / (D * A + C * B);
-        x = (uq - y * D) / C;
+        float u_on_time, v_on_time, w_on_time;
+        float y = (ud - uq * s.uq) / (s.uq60 * s.ud + s.uq * s.ud60); /* 60 degree vector amount */
+        float x = (uq - y * s.uq60) / s.uq;                           /* 0 degree vector amount */
+        float t0 = 1 - x - y;                                         /* 0.2x first vector + 0.4x second vector, 0.4 is missing from whole */
+
+        t0 *= frequency;
+        x *= frequency;
+        y *= frequency;
+
+        u_on_time = x * ((int)s.s & 1) + y * ((int)s.s60 & 1) + 0.5 * t0;
+        v_on_time = x * ((int)s.s >> 1 & 1) + y * ((int)s.s60 >> 1 & 1) + 0.5 * t0;
+        w_on_time = x * ((int)s.s >> 2 & 1) + y * ((int)s.s60 >> 2 & 1) + 0.5 * t0;
+
+        /* TODO: check error */
+        pwm_u = u_on_time;
+        pwm_v = v_on_time;
+        pwm_w = w_on_time;
     }
-    static constexpr float SQRTFIDESZ = 0.81649658092;
-    static const float PI = 3.14159265359;
+    int get_sector_index()
+    {
+        int sector_index = 0;
+        if (uq > 0)
+        {
+            if (ud > 0)
+            {
+                if (uq - 3 * ud < 0)
+                {
+                    sector_index = 1;
+                }
+                else
+                {
+                    sector_index = 2;
+                }
+            }
+            else
+            {
+                if (uq + 3 * ud < 0)
+                {
+                    sector_index = 3;
+                }
+                else
+                {
+                    sector_index = 2;
+                }
+            }
+        }
+        else
+        {
+            if (ud > 0)
+            {
+                if (uq + 3 * ud < 0)
+                {
+                    sector_index = 5;
+                }
+                else
+                {
+                    sector_index = 6;
+                }
+            }
+            else
+            {
+                if (uq - 3 * ud < 0)
+                {
+                    sector_index = 5;
+                }
+                else
+                {
+                    sector_index = 4;
+                }
+            }
+        }
+        return sector_index;
+    }
     /*
     position in radian
     */
-    void setkc(float position)
+    void set_Kc(float position)
     {
         /* maybe an u - v */
         /* then the hall sensor position ? */
         /* last fix commutation + where are we at the current side */
-        kc[0][0] = SQRTFIDESZ * cos(position);
-        kc[0][1] = SQRTFIDESZ * cos(position - 2 * PI / 3);
-        kc[0][2] = SQRTFIDESZ * cos(position + 2 * PI / 3);
+        kc[0][0] = sqrt(2 / 3) * cos(position);
+        kc[0][1] = sqrt(2 / 3) * cos(position - 2 * M_PI / 3);
+        kc[0][2] = sqrt(2 / 3) * cos(position + 2 * M_PI / 3);
 
-        kc[1][0] = -SQRTFIDESZ * sin(position);
-        kc[1][1] = -SQRTFIDESZ * sin(position - 2 * PI / 3);
-        kc[1][2] = -SQRTFIDESZ * sin(position + 2 * PI / 3);
+        kc[1][0] = -sqrt(2 / 3) * sin(position);
+        kc[1][1] = -sqrt(2 / 3) * sin(position - 2 * M_PI / 3);
+        kc[1][2] = -sqrt(2 / 3) * sin(position + 2 * M_PI / 3);
 
         kc[2][0] = 0.57735026919;
         kc[2][1] = 0.57735026919;
