@@ -45,8 +45,8 @@ Hallsensor
 class HallSensor
 {
 public:
-    static const float PI_180 = 3.14159265359 / 180;
-    static constexpr uint16_t hall2angle[6][3] = {
+    static constexpr float PI_180 = 3.14159265359 / 180;
+    static constexpr float hall2angle[6][3] = {
         /*   uvw  l  h */
         {0b101, 0, 60 * PI_180},
         {0b100, 60 * PI_180, 120 * PI_180},
@@ -418,6 +418,12 @@ public:
         Ph_C,
         PHASE_NUM
     };
+
+    Motor()
+    {
+        /* automata init */
+        state = State::STOP; /* standing still hopefully */
+    }
     Motor(SpeedController sc):sc(sc)
     {
         /* automata init */
