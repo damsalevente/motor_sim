@@ -32,6 +32,7 @@ void control_runner(float *w_ref, float *wr, float *id, float *iq, float *ud,
     count = 0;
   }
   control_fast(&id_ref, &iq_ref, id, iq, ud, uq);
+  printf("Ud: %lf, Uq: %lf\n",*ud, *uq );
 }
 
 /* id iq controller runs way more */
