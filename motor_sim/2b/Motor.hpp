@@ -154,18 +154,24 @@ private:
     float target_speed; /* desired speed to user */
     float sp_speed;     /* setpoint for ramping( we cannot increase the speed at one timestep, motor goes F) */
     float speed_command;
+    bool enable_ramp; /* whether to increase/decrease the internal setpoint */
     float frequency; /* switching frequency */
     float incr;      /* increment for ramp up/down */
+
     float id;        /* measured d reference current */
     float iq;
+    
     float ud; /* calculated d reference command from PID controller */
     float uq;
+
     float VDC; /* dc voltage that is attached to it */
+
     float kc[3][3];
-    bool enable_ramp; /* whether to increase/decrease the internal setpoint */
+
     float pwm_u;
     float pwm_v;
     float pwm_w;
+
     const Sector sectors[8] = {
         /* ud1 uq1 ud2 uq2 degree start, code1 code 2 */
         {0, 0, 0, 0, 0, 0, 0},
@@ -195,27 +201,66 @@ public:
     }
     void set_speed(float new_speed)
     {
+        if(target_speed == new_speed)
+        {
+            return;
+        }
         target_speed = new_speed;
+        enable_ramp = true;
     }
-    void loop_speed(float u[3], float position)
+    void loop()
     {
-        set_Kc(position);
-        calcIdIq(u);
-        run_speed();
+        if(enable_ramp)
+        {
+            if(ramp_up())
+            {
+                sp_speed += incr;
+                if(sp_speed >= target_speed)
+                {
+                    sp_speed = target_speed;
+                    enable_ramp = false;
+                }
+            }
+            else
+            {
+                sp_speed -= incr;
+                if(sp_speed <= target_speed)
+                {
+                    sp_speed = target_speed;
+                    enable_ramp = false;
+                }
+            }
+        }
+        speed_update();
     }
-    void run_speed()
+    void speed_update()
     {
         speed_command = Speed_pid.run(sp_speed, cur_speed);
     }
+    bool speed_reached()
+    {
+        return cur_speed == target_speed;
+    }
+    void input(float position, float phase_currents[3])
+    {
+        set_Kc(position);
+        calcIdIq(phase_currents);
+    }
+
+    bool ramp_up()
+    {
+        return target_speed < cur_speed;
+    }
+
+    /* low ms */
     void loop_current()
     {
         ud = ID_pid.run(speed_command, id);
         uq = IQ_pid.run(0.0, iq); /* try to make it zero  */
-        update_pwm();             /* at least here */
+        update_pwm();
     }
     void update_pwm()
     {
-
         int sector_index = 0; /* select one plane from the hexagon */
         /* scale vectors to -1 1 */
         ud /= VDC;
@@ -225,6 +270,7 @@ public:
         uq /= VDC;
         uq = uq > 1 ? 1 : uq;
         uq = uq < -1 ? -1 : uq;
+
         sector_index = get_sector_index();
         /* build the pwm signal times */
         calc_pwm_signals(sectors[sector_index]);
@@ -241,9 +287,9 @@ public:
         x *= frequency;
         y *= frequency;
 
-        u_on_time = x * ((int)s.s & 1) + y * ((int)s.s60 & 1) + 0.5 * t0;
-        v_on_time = x * ((int)s.s >> 1 & 1) + y * ((int)s.s60 >> 1 & 1) + 0.5 * t0;
-        w_on_time = x * ((int)s.s >> 2 & 1) + y * ((int)s.s60 >> 2 & 1) + 0.5 * t0;
+        u_on_time = x * (s.s & 1) + y * (s.s60 & 1) + 0.5 * t0;
+        v_on_time = x * (s.s >> 1 & 1) + y * (s.s60 >> 1 & 1) + 0.5 * t0;
+        w_on_time = x * (s.s >> 2 & 1) + y * (s.s60 >> 2 & 1) + 0.5 * t0;
 
         /* TODO: check error */
         pwm_u = u_on_time;
@@ -372,16 +418,10 @@ public:
         Ph_C,
         PHASE_NUM
     };
-    Motor()
+    Motor(SpeedController sc):sc(sc)
     {
         /* automata init */
-        incr = 0.2;          /* increase the motor speed 0.2 m/s in one timestep */
         state = State::STOP; /* standing still hopefully */
-        enable_ramp = 0;
-    }
-    uint8_t ramp_up()
-    {
-        return target_speed > cur_speed;
     }
     void setState(State newState)
     {
@@ -394,37 +434,6 @@ public:
 
     void motor_task()
     {
-        /* only ramp up if we reached the previous checkpoint and */
-        if (enable_ramp)
-        {
-            if (ramp_up() && (cur_speed >= sp_speed))
-            {
-                if ((sp_speed + incr) <= target_speed)
-                {
-                    sp_speed += incr;
-                }
-                else
-                {
-                    sp_speed = target_speed;
-                    /* this is more like ramping finsihed not speed reached but whatever, disable ramp up */
-                }
-            }
-            /* ramp down */
-            else if (cur_speed <= sp_speed)
-            {
-                if ((sp_speed - incr) >= target_speed)
-                {
-                    sp_speed -= incr;
-                }
-                else
-                {
-                    sp_speed = target_speed;
-                }
-            }
-        }
-        printf("Update pwm values to the gate based on speed = %f, id, iq \n", sp_speed);
-        /* dummy update value */
-        cur_speed = sp_speed;
     }
     /*input */
     std::uint16_t currentU;
@@ -454,7 +463,7 @@ public:
     bool lowgain;
 
     /* inner variables */
-
+    SpeedController sc;
     State state;
 
     float mot_temp;
