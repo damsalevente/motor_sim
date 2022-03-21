@@ -7,6 +7,9 @@ int main()
 { 
     Devola devola;
     devola.march(1.34);
-	printf("Finished\n");
-	return 0;
+    devola.report();
+    devola.march(2.45);
+    devola.report();
+    printf("Finished\n");
+    return 0;
 }

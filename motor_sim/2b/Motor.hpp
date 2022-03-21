@@ -296,6 +296,10 @@ public:
         pwm_v = v_on_time;
         pwm_w = w_on_time;
     }
+    void log()
+    {
+        printf("Speedcontroller: Input:\n %lf %lf %lf\n ", pwm_u, pwm_v, pwm_w);
+    }
     int get_sector_index()
     {
         int sector_index = 0;
@@ -437,7 +441,11 @@ public:
     {
         return state;
     }
-
+    void log()
+    {
+        printf("Currents(u,v,w): %d %d %d \n", currentU, currentV, currentW);
+        printf("Speed: % d\n", speed);
+    }
     void motor_task()
     {
     }
@@ -471,6 +479,5 @@ public:
     /* inner variables */
     SpeedController sc;
     State state;
-
     float mot_temp;
 };

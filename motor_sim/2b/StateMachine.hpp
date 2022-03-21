@@ -52,6 +52,7 @@ public:
     static void on_update_speed(Motor *m, uint16_t * data)
     {
         printf("set speed\n");
+        m->sc.set_speed(*data);    
     }
     static void on_break(Motor *m, uint16_t * data)
     {
